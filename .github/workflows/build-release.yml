@@ -33,55 +33,16 @@ jobs:
               maxParallelForks = 1
               failFast = true
               timeout = java.time.Duration.ofMinutes(3)
-              jvmArgs '-XX:-ExitOnOutOfMemoryError', '-XX:-HeapDumpOnOutOfMemoryError'
+              jvmArgs '-XX:-HeapDumpOnOutOfMemoryError'
               testLogging {
                 events 'started', 'passed', 'failed'
-                showStandardStreams = true
                 exceptionFormat 'full'
               }
             }
           }
           INIT
-          cat > ui-lib/src/test/java/co/electriccoin/zcash/ui/common/donation/DonationDiagnosticRunner.kt <<'KOTLIN'
-          package co.electriccoin.zcash.ui.common.donation
-          import org.robolectric.RobolectricTestRunner
-          import org.junit.runner.notification.RunNotifier
-          import org.junit.runner.notification.RunListener
-          import org.junit.runner.notification.Failure
-          class DonationDiagnosticRunner(type: Class<*>) : RobolectricTestRunner(type) {
-              override fun run(notifier: RunNotifier) {
-                  notifier.addFirstListener(object : RunListener() {
-                      override fun testFailure(failure: Failure) {
-                          var current: Throwable? = failure.exception
-                          val seen = java.util.Collections.newSetFromMap(java.util.IdentityHashMap<Throwable, Boolean>())
-                          repeat(12) { depth ->
-                              val error = current ?: return
-                              if (!seen.add(error)) return
-                              val message = try { error.message.orEmpty().take(240) } catch (_: Throwable) { "unavailable" }
-                              println("DONATION_BOUNDED_CAUSE $depth ${error.javaClass.name} $message")
-                              error.stackTrace.take(8).forEach { println("DONATION_BOUNDED_FRAME $it") }
-                              current = error.cause
-                          }
-                      }
-                  })
-                  super.run(notifier)
-              }
-          }
-          KOTLIN
-          sed -i 's/@RunWith(RobolectricTestRunner::class)/@RunWith(DonationDiagnosticRunner::class)/' ui-lib/src/test/java/co/electriccoin/zcash/ui/common/donation/AutoDonationCoordinatorTest.kt
-          python3 - <<'PYTRACE'
-          from pathlib import Path
-          p=Path('ui-lib/src/test/java/co/electriccoin/zcash/ui/common/donation/AutoDonationCoordinatorTest.kt')
-          lines=p.read_text().splitlines();out=[]
-          for number,line in enumerate(lines,1):
-              text=line.lstrip()
-              if text.startswith(('every {','coEvery {','coVerify(', 'val f = Fixture','f.prepareIncoming(', 'f.enroll()', 'f.engine.onStatus(', 'advanceUntilIdle()')):
-                  out.append(line[:len(line)-len(text)]+'println("DONATION_STUB_STEP '+str(number)+'")')
-              out.append(line)
-          p.write_text('\n'.join(out)+'\n')
-          PYTRACE
           chmod +x gradlew
-          ./gradlew -I .private/robolectric-ci.gradle -I "$RUNNER_TEMP/targeted.gradle" --no-daemon --no-watch-fs --max-workers=2 -Dorg.gradle.jvmargs='-Xmx2g -XX:MaxMetaspaceSize=1g' -Pkotlin.compiler.execution.strategy=in-process :ui-lib:testZcashmainnetFossReleaseUnitTest --tests 'co.electriccoin.zcash.ui.common.donation.AutoDonationCoordinatorTest'
+          ./gradlew -I .private/robolectric-ci.gradle -I "$RUNNER_TEMP/targeted.gradle" --no-daemon --no-watch-fs --max-workers=2 -Dorg.gradle.jvmargs='-Xmx2g -XX:MaxMetaspaceSize=1g' -Pkotlin.compiler.execution.strategy=in-process :ui-lib:testZcashmainnetFossReleaseUnitTest --tests 'co.electriccoin.zcash.ui.common.donation.AutoDonationCoordinatorTest' --tests 'co.electriccoin.zcash.ui.common.donation.AutoDonationStoreTest'
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
