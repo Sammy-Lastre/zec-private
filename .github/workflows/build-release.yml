@@ -69,6 +69,17 @@ jobs:
           }
           KOTLIN
           sed -i 's/@RunWith(RobolectricTestRunner::class)/@RunWith(DonationDiagnosticRunner::class)/' ui-lib/src/test/java/co/electriccoin/zcash/ui/common/donation/AutoDonationCoordinatorTest.kt
+          python3 - <<'PYTRACE'
+          from pathlib import Path
+          p=Path('ui-lib/src/test/java/co/electriccoin/zcash/ui/common/donation/AutoDonationCoordinatorTest.kt')
+          lines=p.read_text().splitlines();out=[]
+          for number,line in enumerate(lines,1):
+              text=line.lstrip()
+              if text.startswith(('every {','coEvery {','coVerify(', 'val f = Fixture','f.prepareIncoming(', 'f.enroll()', 'f.engine.onStatus(', 'advanceUntilIdle()')):
+                  out.append(line[:len(line)-len(text)]+'println("DONATION_STUB_STEP '+str(number)+'")')
+              out.append(line)
+          p.write_text('\n'.join(out)+'\n')
+          PYTRACE
           chmod +x gradlew
           ./gradlew -I .private/robolectric-ci.gradle -I "$RUNNER_TEMP/targeted.gradle" --no-daemon --no-watch-fs --max-workers=2 -Dorg.gradle.jvmargs='-Xmx2g -XX:MaxMetaspaceSize=1g' -Pkotlin.compiler.execution.strategy=in-process :ui-lib:testZcashmainnetFossReleaseUnitTest --tests 'co.electriccoin.zcash.ui.common.donation.AutoDonationCoordinatorTest'
       - if: always()
