@@ -33,7 +33,7 @@ jobs:
               maxParallelForks = 1
               failFast = true
               timeout = java.time.Duration.ofMinutes(3)
-              jvmArgs '-XX:-HeapDumpOnOutOfMemoryError'
+              jvmArgs '-XX:-ExitOnOutOfMemoryError', '-XX:-HeapDumpOnOutOfMemoryError'
               testLogging {
                 events 'started', 'passed', 'failed'
                 exceptionFormat 'full'
